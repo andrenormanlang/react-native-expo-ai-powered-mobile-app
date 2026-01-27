@@ -4,7 +4,22 @@ import {
   APPWRITE_PROJECT_ID,
   APPWRITE_DATABASE_ID,
   APPWRITE_COLLECTION_ID,
+  APPWRITE_FUNCTION_ID_GENERATE_DESC,
 } from "@env";
+
+const withTimeout = (promise, timeoutMs, label = "operation") => {
+  let timeoutId;
+
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`Timed out after ${timeoutMs}ms (${label})`));
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+};
 
 const client = new Client()
   .setEndpoint(APPWRITE_ENDPOINT)
@@ -16,7 +31,9 @@ const functions = new Functions(client);
 
 const DATABASE_ID = APPWRITE_DATABASE_ID;
 const COLLECTION_ID = APPWRITE_COLLECTION_ID;
-const FUNCTION_ID = "comics_description_ai"; // Updated to the correct function ID
+const FUNCTION_ID = APPWRITE_FUNCTION_ID_GENERATE_DESC || "comics_description_ai";
+
+const DEFAULT_TIMEOUT_MS = 15000;
 
 export const getComics = async () => {
   try {
@@ -27,7 +44,11 @@ export const getComics = async () => {
       collectionId: COLLECTION_ID,
     });
 
-    const response = await databases.listDocuments(DATABASE_ID, COLLECTION_ID);
+    const response = await withTimeout(
+      databases.listDocuments(DATABASE_ID, COLLECTION_ID),
+      DEFAULT_TIMEOUT_MS,
+      "Appwrite listDocuments"
+    );
     console.log("Appwrite listDocuments response:", response);
 
     if (!response || !response.documents) {
@@ -45,11 +66,10 @@ export const getComics = async () => {
 
 export const createComic = async (data) => {
   try {
-    return await databases.createDocument(
-      DATABASE_ID,
-      COLLECTION_ID,
-      ID.unique(),
-      data
+    return await withTimeout(
+      databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), data),
+      DEFAULT_TIMEOUT_MS,
+      "Appwrite createDocument"
     );
   } catch (error) {
     console.error("Error creating comic:", error);
@@ -59,11 +79,10 @@ export const createComic = async (data) => {
 
 export const updateComic = async (documentId, data) => {
   try {
-    return await databases.updateDocument(
-      DATABASE_ID,
-      COLLECTION_ID,
-      documentId,
-      data
+    return await withTimeout(
+      databases.updateDocument(DATABASE_ID, COLLECTION_ID, documentId, data),
+      DEFAULT_TIMEOUT_MS,
+      "Appwrite updateDocument"
     );
   } catch (error) {
     console.error("Error updating comic:", error);
@@ -73,10 +92,10 @@ export const updateComic = async (documentId, data) => {
 
 export const deleteComic = async (documentId) => {
   try {
-    return await databases.deleteDocument(
-      DATABASE_ID,
-      COLLECTION_ID,
-      documentId
+    return await withTimeout(
+      databases.deleteDocument(DATABASE_ID, COLLECTION_ID, documentId),
+      DEFAULT_TIMEOUT_MS,
+      "Appwrite deleteDocument"
     );
   } catch (error) {
     console.error("Error deleting comic:", error);
@@ -103,7 +122,11 @@ export const fetchGeneratedComicDescription = async (
 
     console.log("Calling AI function with data:", data);
 
-    const execution = await functions.createExecution(FUNCTION_ID, data);
+    const execution = await withTimeout(
+      functions.createExecution(FUNCTION_ID, data),
+      DEFAULT_TIMEOUT_MS,
+      "Appwrite createExecution"
+    );
 
     console.log("Function execution response:", execution);
 

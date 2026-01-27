@@ -8,9 +8,13 @@ import {
   Image,
   Dimensions,
   ActivityIndicator,
+  RefreshControl,
+  Animated,
+  Platform,
 } from "react-native";
 import { Link, router } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { getComics } from "../../utils/appwrite";
 import { getOptimizedImageUrl } from "../../utils/cloudinary";
 
@@ -20,12 +24,17 @@ const CARD_WIDTH = width / 2 - 24;
 export default function HomeScreen() {
   const [comics, setComics] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const isFocused = useIsFocused();
 
-  const fetchComics = async () => {
+  const fetchComics = async (isRefreshing = false) => {
     try {
-      setLoading(true);
+      if (isRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
       const response = await getComics();
       console.log("Fetched comics:", response);
@@ -38,9 +47,10 @@ export default function HomeScreen() {
       }
     } catch (err) {
       console.error("Error fetching comics:", err);
-      setError("Failed to load comics");
+      setError(err.message || "Failed to load comics");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -50,8 +60,31 @@ export default function HomeScreen() {
     }
   }, [isFocused]);
 
-  const renderComic = ({ item }) => {
+  const renderComic = ({ item, index }) => {
     if (!item) return null;
+
+    const renderStars = (rating) => {
+      const stars = [];
+      for (let i = 1; i <= 5; i++) {
+        stars.push(
+          <Ionicons
+            key={i}
+            name={i <= rating ? "star" : "star-outline"}
+            size={14}
+            color={i <= rating ? "#FFD700" : "#555"}
+            style={{ marginRight: 2 }}
+          />
+        );
+      }
+      return <View style={styles.starsContainer}>{stars}</View>;
+    };
+
+    const statusConfig = {
+      read: { label: "Read", color: "#03DAC6", icon: "checkmark-circle" },
+      "to-read": { label: "To Read", color: "#BB86FC", icon: "bookmark" },
+    };
+
+    const config = statusConfig[item.status] || statusConfig["to-read"];
 
     return (
       <TouchableOpacity
@@ -61,23 +94,39 @@ export default function HomeScreen() {
             router.push(`/comics/${item.$id}`);
           }
         }}
+        activeOpacity={0.8}
       >
         <View style={styles.imageContainer}>
-          {item.coverImage && (
+          {item.coverImage ? (
             <Image
               source={{ uri: getOptimizedImageUrl(item.coverImage, 300, 450) }}
               style={styles.coverImage}
-              resizeMode="contain"
+              resizeMode="cover"
             />
+          ) : (
+            <View style={styles.placeholderContainer}>
+              <Ionicons name="book" size={60} color="#555" />
+              <Text style={styles.placeholderText}>No Cover</Text>
+            </View>
           )}
+          <View style={[styles.statusBadge, { backgroundColor: config.color }]}>
+            <Ionicons name={config.icon} size={12} color="#000" />
+          </View>
         </View>
         <View style={styles.comicInfo}>
-          <Text style={styles.comicTitle}>{item.title || "Untitled"}</Text>
-          <Text style={styles.comicStatus}>
-            Status: {item.status || "Unknown"}
+          <Text style={styles.comicTitle} numberOfLines={2}>
+            {item.title || "Untitled"}
           </Text>
+          <View style={styles.metaRow}>
+            <Ionicons name={config.icon} size={14} color={config.color} />
+            <Text style={[styles.comicStatus, { color: config.color }]}>
+              {config.label}
+            </Text>
+          </View>
           {item.rating > 0 && (
-            <Text style={styles.comicRating}>Rating: {item.rating}/5</Text>
+            <View style={styles.ratingRow}>
+              {renderStars(item.rating)}
+            </View>
           )}
         </View>
       </TouchableOpacity>
@@ -87,7 +136,8 @@ export default function HomeScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#BB86FC" />
+        <Text style={styles.loadingText}>Loading your collection...</Text>
       </View>
     );
   }
@@ -95,13 +145,25 @@ export default function HomeScreen() {
   if (error) {
     return (
       <View style={styles.errorContainer}>
+        <Ionicons name="alert-circle" size={64} color="#CF6679" />
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchComics}>
+        <TouchableOpacity style={styles.retryButton} onPress={() => fetchComics()}>
+          <Ionicons name="refresh" size={20} color="#000" style={{ marginRight: 8 }} />
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
     );
   }
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="book-outline" size={80} color="#555" />
+      <Text style={styles.emptyTitle}>No Comics Yet</Text>
+      <Text style={styles.emptySubtitle}>
+        Start building your collection by tapping the + button below
+      </Text>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -111,6 +173,11 @@ export default function HomeScreen() {
           style={styles.logo}
           resizeMode="contain"
         />
+        <View style={styles.statsContainer}>
+          <Text style={styles.statsText}>
+            {comics.length} {comics.length === 1 ? "Comic" : "Comics"}
+          </Text>
+        </View>
       </View>
 
       <FlatList
@@ -118,8 +185,19 @@ export default function HomeScreen() {
         renderItem={renderComic}
         keyExtractor={(item) => item.$id}
         style={styles.list}
+        contentContainerStyle={comics.length === 0 ? styles.emptyList : null}
         numColumns={2}
-        columnWrapperStyle={styles.row}
+        columnWrapperStyle={comics.length > 0 ? styles.row : null}
+        ListEmptyComponent={renderEmptyState}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => fetchComics(true)}
+            tintColor="#BB86FC"
+            colors={["#BB86FC"]}
+          />
+        }
+        showsVerticalScrollIndicator={false}
       />
     </View>
   );
@@ -137,95 +215,193 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(18, 18, 18, 0.8)",
   },
+  loadingText: {
+    color: "#BB86FC",
+    fontSize: 16,
+    marginTop: 16,
+    fontWeight: "600",
+  },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 16,
+    padding: 32,
     backgroundColor: "rgba(18, 18, 18, 0.8)",
   },
   errorText: {
-    color: "#BB86FC",
-    marginBottom: 16,
+    color: "#CF6679",
+    fontSize: 16,
+    marginTop: 16,
+    marginBottom: 24,
+    textAlign: "center",
+    lineHeight: 24,
   },
   retryButton: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#BB86FC",
-    padding: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#BB86FC",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
   },
   retryButtonText: {
     color: "#000",
     fontWeight: "bold",
+    fontSize: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 40,
+    paddingTop: 80,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#fff",
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: "#999",
+    textAlign: "center",
+    lineHeight: 24,
+  },
+  emptyList: {
+    flexGrow: 1,
   },
   headerSpace: {
     height: 80,
-    marginBottom: 24,
-    justifyContent: "center",
-    alignItems: "flex-start",
-    paddingLeft: 0, // Removed padding to move logo all the way to the left
+    marginBottom: 16,
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexDirection: "row",
   },
   logo: {
-    width: 200,
+    width: 180,
     height: "100%",
+  },
+  statsContainer: {
+    backgroundColor: "rgba(187, 134, 252, 0.15)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(187, 134, 252, 0.3)",
+  },
+  statsText: {
+    color: "#BB86FC",
+    fontSize: 14,
+    fontWeight: "600",
   },
   list: {
     flex: 1,
   },
   row: {
     justifyContent: "space-between",
-    marginBottom: 24,
-    paddingHorizontal: 4,
+    marginBottom: 20,
+    paddingHorizontal: 2,
   },
   comicCard: {
     width: CARD_WIDTH,
-    backgroundColor: "rgba(30, 30, 30, 0.85)",
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
-    borderColor: "rgba(187, 134, 252, 0.3)",
-    borderWidth: 1,
+    backgroundColor: "rgba(30, 30, 30, 0.95)",
+    borderRadius: 16,
     overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.5,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 10,
+      },
+    }),
+    borderWidth: 1,
+    borderColor: "rgba(187, 134, 252, 0.2)",
   },
   imageContainer: {
     width: "100%",
-    height: 250,
-    backgroundColor: "#121212",
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    overflow: "hidden",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(187, 134, 252, 0.2)",
+    height: 260,
+    backgroundColor: "#0A0A0A",
+    position: "relative",
   },
   coverImage: {
     width: "100%",
     height: "100%",
   },
+  placeholderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#1A1A1A",
+  },
+  placeholderText: {
+    color: "#555",
+    fontSize: 14,
+    marginTop: 12,
+    fontWeight: "600",
+  },
+  statusBadge: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    borderRadius: 20,
+    padding: 6,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
   comicInfo: {
-    padding: 12,
-    backgroundColor: "rgba(18, 18, 18, 0.6)",
+    padding: 14,
+    backgroundColor: "rgba(20, 20, 20, 0.8)",
+    minHeight: 100,
   },
   comicTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 4,
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 8,
     color: "#fff",
-    textShadowColor: "rgba(0, 0, 0, 0.75)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    lineHeight: 20,
+    letterSpacing: 0.3,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
   },
   comicStatus: {
-    color: "#BB86FC",
-    fontSize: 14,
-    marginBottom: 4,
-    opacity: 0.9,
+    fontSize: 13,
+    marginLeft: 6,
+    fontWeight: "600",
   },
-  comicRating: {
-    color: "#03DAC6",
-    fontWeight: "bold",
-    fontSize: 14,
-    opacity: 0.9,
+  ratingRow: {
+    marginTop: 4,
+  },
+  starsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
   },
 });
