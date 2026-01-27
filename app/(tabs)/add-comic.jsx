@@ -22,6 +22,8 @@ import {
 import { uploadToCloudinary } from "../../utils/cloudinary";
 
 const AddComicScreen = () => {
+  const TITLE_MAX_LENGTH = 255;
+
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState("to-read");
   const [rating, setRating] = useState("0");
@@ -59,8 +61,18 @@ const AddComicScreen = () => {
   };
 
   const handleSubmit = async () => {
-    if (!title.trim()) {
+    const normalizedTitle = String(title ?? "").trim();
+
+    if (!normalizedTitle) {
       Alert.alert("Error", "Please enter a comic title");
+      return;
+    }
+
+    if (normalizedTitle.length > TITLE_MAX_LENGTH) {
+      Alert.alert(
+        "Title too long",
+        `Please keep the title under ${TITLE_MAX_LENGTH} characters.`
+      );
       return;
     }
 
@@ -84,14 +96,14 @@ const AddComicScreen = () => {
       }
 
       console.log("Generating description for:", {
-        title: title.trim(),
+        title: normalizedTitle,
         status,
         rating: status === "read" ? ratingNum : 0,
       });
 
       // Generate description before creating the comic
       const description = await fetchGeneratedComicDescription(
-        title.trim(),
+        normalizedTitle,
         status,
         status === "read" ? ratingNum : 0,
       );
@@ -102,7 +114,7 @@ const AddComicScreen = () => {
 
       // Create comic with the generated description
       await createComic({
-        title: title.trim(),
+        title: normalizedTitle,
         status,
         rating: status === "read" ? ratingNum : 0,
         coverImage,
@@ -113,7 +125,7 @@ const AddComicScreen = () => {
 
       Alert.alert(
         "Success!",
-        `${title.trim()} has been added to your collection.`,
+        `${normalizedTitle} has been added to your collection.`,
         [
           {
             text: "OK",
@@ -162,6 +174,7 @@ const AddComicScreen = () => {
               placeholder="Enter comic title"
               placeholderTextColor="#666"
               editable={!loading}
+              maxLength={TITLE_MAX_LENGTH}
             />
           </View>
 

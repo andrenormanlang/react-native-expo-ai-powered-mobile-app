@@ -19,6 +19,8 @@ import { getComic, updateComic } from "../../../utils/appwrite";
 import { uploadToCloudinary } from "../../../utils/cloudinary";
 
 export default function EditComicScreen() {
+  const TITLE_MAX_LENGTH = 255;
+
   const { id } = useLocalSearchParams();
 
   const [loading, setLoading] = useState(true);
@@ -105,6 +107,15 @@ export default function EditComicScreen() {
       return;
     }
 
+    const normalizedTitle = String(title ?? "").trim();
+    if (normalizedTitle.length > TITLE_MAX_LENGTH) {
+      Alert.alert(
+        "Title too long",
+        `Please keep the title under ${TITLE_MAX_LENGTH} characters.`
+      );
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -116,7 +127,7 @@ export default function EditComicScreen() {
       }
 
       await updateComic(id, {
-        title: title.trim(),
+        title: normalizedTitle,
         description: description.trim(),
         status,
         rating: ratingNum,
@@ -241,6 +252,7 @@ export default function EditComicScreen() {
               placeholder="e.g. One Piece Vol. 1"
               placeholderTextColor="#777"
               editable={!saving}
+              maxLength={TITLE_MAX_LENGTH}
             />
           </View>
 

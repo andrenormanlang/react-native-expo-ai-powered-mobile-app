@@ -19,6 +19,11 @@ const client = new Client()
 
 const databases = new Databases(client);
 
+const toNumberOrNull = (value) => {
+  const num = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(num) ? num : null;
+};
+
 const comicsSchema = {
   title: {
     type: "string",
@@ -98,13 +103,13 @@ const migrateSchema = async () => {
         APPWRITE_DATABASE_ID,
         APPWRITE_COLLECTION_ID,
         "Comics Collection",
-        [],
         [
           Permission.read(Role.any()),
           Permission.create(Role.any()),
           Permission.update(Role.any()),
           Permission.delete(Role.any()),
-        ]
+        ],
+        false
       );
       console.log("Collection permissions updated successfully");
     } catch (error) {
@@ -112,7 +117,7 @@ const migrateSchema = async () => {
       throw error;
     }
 
-    // Create attributes
+    // Create / update attributes
     for (const [name, definition] of Object.entries(comicsSchema)) {
       try {
         if (definition.type === "string") {
@@ -145,6 +150,42 @@ const migrateSchema = async () => {
       } catch (error) {
         if (error.code === 409) {
           console.log(`Attribute ${name} already exists`);
+
+          // Ensure existing attribute config matches the expected schema (esp. string sizes).
+          try {
+            const existing = await databases.getAttribute(
+              APPWRITE_DATABASE_ID,
+              APPWRITE_COLLECTION_ID,
+              name
+            );
+
+            if (definition.type === "string") {
+              const existingSize = toNumberOrNull(existing?.size);
+              const expectedSize = toNumberOrNull(definition.size);
+              const existingRequired = !!existing?.required;
+              const expectedRequired = !!definition.required;
+
+              const needsUpdate =
+                (existingSize !== null && expectedSize !== null && existingSize < expectedSize) ||
+                existingRequired !== expectedRequired;
+
+              if (needsUpdate) {
+                await databases.updateStringAttribute(
+                  APPWRITE_DATABASE_ID,
+                  APPWRITE_COLLECTION_ID,
+                  name,
+                  expectedRequired,
+                  existing?.default ?? null,
+                  expectedSize
+                );
+                console.log(
+                  `Updated string attribute: ${name} (size ${existingSize} -> ${expectedSize}, required ${existingRequired} -> ${expectedRequired})`
+                );
+              }
+            }
+          } catch (innerError) {
+            console.warn(`Could not verify/update attribute ${name}:`, innerError);
+          }
         } else {
           console.error(`Error creating attribute ${name}:`, error);
           throw error;
