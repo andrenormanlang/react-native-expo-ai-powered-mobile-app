@@ -1,8 +1,8 @@
-# Comics Shelf (Expo / React Native) :)
+# Comics Shelf (Expo / React Native) 📚
 
-A tiny comic collection app that lets you track what you’ve read vs what’s on your “to-read” pile, store everything in Appwrite, and upload cover images to Cloudinary. It can also generate a short description via an Appwrite Function. (ง'̀-'́)ง
+A tiny comic collection app that lets you track what you've read vs what's on your "to-read" pile, store everything in Appwrite, and upload cover images to Cloudinary. It can also generate a short description via an Appwrite Function. 💪
 
-## What you can do (☞ﾟヮﾟ)☞
+## What you can do ✨
 
 - Browse your shelf (grid of comics)
 - Add a comic with:
@@ -13,9 +13,9 @@ A tiny comic collection app that lets you track what you’ve read vs what’s o
   - Auto-generated description (via Appwrite Functions)
 - View details for a comic
 - Edit a comic (title/status/rating/description/cover)
-- Delete a comic (with confirmation) :(
+- Delete a comic (with confirmation) 🗑️
 
-## Routes / screens (•_•)
+## Routes / screens 🗺️
 
 This project uses `expo-router`.
 
@@ -24,7 +24,7 @@ This project uses `expo-router`.
 - `/comics/[id].jsx` — Comic details
 - `/comics/edit/[id].jsx` — Edit comic
 
-## Tech stack (⌐■_■)
+## Tech stack 🛠️
 
 - Expo SDK 52 + React Native 0.76
 - `expo-router` for navigation
@@ -35,7 +35,7 @@ This project uses `expo-router`.
 - NativeWind + Tailwind config (project is mostly `StyleSheet`, but NativeWind is wired up)
 - Google font: Bangers (`@expo-google-fonts/bangers`)
 
-## Getting started (ง •̀_•́)ง
+## Getting started 🚀
 
 ### 1) Install dependencies
 
@@ -48,7 +48,7 @@ npm install
 Create a `.env` file in the project root.
 
 - If you’re starting fresh: copy `.env.example` → `.env` and fill values.
-- This repo already contains a `.gitignore` rule for `.env` (good!). Still: do NOT commit secrets. (ಠ_ಠ)
+- This repo already contains a `.gitignore` rule for `.env` (good!). Still: do NOT commit secrets. ⚠️
 
 Required for the mobile app:
 
@@ -72,7 +72,7 @@ Cloudinary:
   - Cloud name: `dytiufsuu`
   - Upload preset: `comics_shelf`
 
-If you want to use your own Cloudinary account, update those in `utils/cloudinary.js`. :)
+If you want to use your own Cloudinary account, update those in `utils/cloudinary.js`. 😊
 
 ### 3) (Optional but recommended) Create/update the Appwrite DB schema
 
@@ -92,7 +92,7 @@ It creates a `comics` schema with fields:
 - `createdAt` (datetime)
 - `updatedAt` (datetime)
 
-Permissions note (important) (ಠ‿ಠ):
+Permissions note (important) ⚠️:
 
 - The migration sets collection permissions to `Role.any()` for read/create/update/delete.
 - That’s convenient for demos, but you probably want auth-based rules for a real app.
@@ -111,7 +111,7 @@ npm run ios
 npm run web
 ```
 
-## Appwrite notes (•ᴗ•)
+## Appwrite notes 📝
 
 - Client calls are implemented in `utils/appwrite.js`.
 - The Appwrite client sets `.setPlatform("com.comicsshelf.app")`.
@@ -127,9 +127,9 @@ When adding a comic, the app calls an Appwrite Function execution:
 - Expected response shape:
   - `{ success: true, description: "..." }`
 
-If you don’t have that function deployed, adding comics will fail at the “generate description” step. (╯°□°）╯︵ ┻━┻
+If you don't have that function deployed, adding comics will fail at the "generate description" step. 🚨
 
-## Project scripts (•_•)>
+## Project scripts ⚡
 
 - `npm start` — start Expo
 - `npm run android` — start Expo for Android
@@ -137,13 +137,13 @@ If you don’t have that function deployed, adding comics will fail at the “ge
 - `npm run web` — start Expo for web
 - `npm run migrate` — run Appwrite schema migration
 
-## Troubleshooting (¬_¬)
+## Troubleshooting 🔧
 
 - **Stuck on splash / blank screen**: fonts are loaded before rendering (`app/_layout.js`). If fonts don’t load, the app intentionally returns `null`.
 - **Appwrite errors**: verify `APPWRITE_*` IDs are correct and the database/collection exists (run `npm run migrate`).
 - **Cloudinary upload failing**: ensure the unsigned upload preset exists and is enabled for your Cloudinary cloud; or update `utils/cloudinary.js`.
 
-## Folder map (quick) (づ｡◕‿‿◕｡)づ
+## Folder map (quick) 📁
 
 - `app/` — routes (expo-router)
 - `utils/appwrite.js` — Appwrite CRUD + function execution
