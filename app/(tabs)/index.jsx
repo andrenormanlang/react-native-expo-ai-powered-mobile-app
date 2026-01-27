@@ -73,7 +73,7 @@ export default function HomeScreen() {
             size={14}
             color={i <= rating ? "#FFD700" : "#555"}
             style={{ marginRight: 2 }}
-          />
+          />,
         );
       }
       return <View style={styles.starsContainer}>{stars}</View>;
@@ -110,7 +110,7 @@ export default function HomeScreen() {
             </View>
           )}
           <View style={[styles.statusBadge, { backgroundColor: config.color }]}>
-            <Ionicons name={config.icon} size={12} color="#000" />
+            <Ionicons name={config.icon} size={16} color="#000" />
           </View>
         </View>
         <View style={styles.comicInfo}>
@@ -124,9 +124,7 @@ export default function HomeScreen() {
             </Text>
           </View>
           {item.rating > 0 && (
-            <View style={styles.ratingRow}>
-              {renderStars(item.rating)}
-            </View>
+            <View style={styles.ratingRow}>{renderStars(item.rating)}</View>
           )}
         </View>
       </TouchableOpacity>
@@ -147,8 +145,16 @@ export default function HomeScreen() {
       <View style={styles.errorContainer}>
         <Ionicons name="alert-circle" size={64} color="#CF6679" />
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={() => fetchComics()}>
-          <Ionicons name="refresh" size={20} color="#000" style={{ marginRight: 8 }} />
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => fetchComics()}
+        >
+          <Ionicons
+            name="refresh"
+            size={20}
+            color="#000"
+            style={{ marginRight: 8 }}
+          />
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -168,11 +174,6 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.headerSpace}>
-        <Image
-          source={require("../../assets/logo.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
         <View style={styles.statsContainer}>
           <Text style={styles.statsText}>
             {comics.length} {comics.length === 1 ? "Comic" : "Comics"}
@@ -207,13 +208,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: "transparent",
+    backgroundColor: "#0B1020",
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(18, 18, 18, 0.8)",
+    backgroundColor: "#0B1020",
   },
   loadingText: {
     color: "#BB86FC",
@@ -226,7 +227,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 32,
-    backgroundColor: "rgba(18, 18, 18, 0.8)",
+    backgroundColor: "#0B1020",
   },
   errorText: {
     color: "#CF6679",
@@ -276,7 +277,7 @@ const styles = StyleSheet.create({
   },
   emptySubtitle: {
     fontSize: 16,
-    color: "#999",
+    color: "#AAAAAA",
     textAlign: "center",
     lineHeight: 24,
   },
@@ -319,7 +320,7 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     backgroundColor: "rgba(30, 30, 30, 0.95)",
     borderRadius: 16,
-    overflow: "hidden",
+    overflow: "visible",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -339,6 +340,9 @@ const styles = StyleSheet.create({
     height: 260,
     backgroundColor: "#0A0A0A",
     position: "relative",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    overflow: "hidden",
   },
   coverImage: {
     width: "100%",
@@ -351,33 +355,39 @@ const styles = StyleSheet.create({
     backgroundColor: "#1A1A1A",
   },
   placeholderText: {
-    color: "#555",
+    color: "#777",
     fontSize: 14,
     marginTop: 12,
     fontWeight: "600",
   },
   statusBadge: {
     position: "absolute",
-    top: 12,
-    right: 12,
-    borderRadius: 20,
-    padding: 6,
+    top: 8,
+    right: 8,
+    borderRadius: 24,
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.5,
+        shadowRadius: 6,
       },
       android: {
-        elevation: 4,
+        elevation: 8,
       },
     }),
   },
   comicInfo: {
     padding: 14,
-    backgroundColor: "rgba(20, 20, 20, 0.8)",
+    backgroundColor: "#1E1E1E",
     minHeight: 100,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   comicTitle: {
     fontSize: 15,

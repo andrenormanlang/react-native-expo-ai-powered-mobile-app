@@ -64,6 +64,23 @@ export const getComics = async () => {
   }
 };
 
+export const getComic = async (documentId) => {
+  try {
+    if (!documentId) {
+      throw new Error("Document ID is required");
+    }
+
+    return await withTimeout(
+      databases.getDocument(DATABASE_ID, COLLECTION_ID, documentId),
+      DEFAULT_TIMEOUT_MS,
+      "Appwrite getDocument"
+    );
+  } catch (error) {
+    console.error("Error fetching comic:", error);
+    throw error;
+  }
+};
+
 export const createComic = async (data) => {
   try {
     return await withTimeout(
@@ -184,6 +201,7 @@ export const fetchGeneratedComicDescription = async (
 
 export default {
   getComics,
+  getComic,
   createComic,
   updateComic,
   deleteComic,

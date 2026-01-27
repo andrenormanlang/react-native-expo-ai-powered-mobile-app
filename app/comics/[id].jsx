@@ -12,12 +12,14 @@ import {
   Platform,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { getComics, deleteComic } from "../../utils/appwrite";
+import { getComic, deleteComic } from "../../utils/appwrite";
 import { getOptimizedImageUrl } from "../../utils/cloudinary";
 
 export default function ComicDetailScreen() {
   const { id } = useLocalSearchParams();
+  const isFocused = useIsFocused();
   const [comic, setComic] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
@@ -27,11 +29,7 @@ export default function ComicDetailScreen() {
     const fetchComic = async () => {
       try {
         setLoading(true);
-        const comics = await getComics();
-        const selectedComic = comics.find((comic) => comic.$id === id);
-        if (!selectedComic) {
-          throw new Error("Comic not found");
-        }
+        const selectedComic = await getComic(id);
         setComic(selectedComic);
       } catch (err) {
         setError(err.message);
@@ -40,8 +38,10 @@ export default function ComicDetailScreen() {
       }
     };
 
-    fetchComic();
-  }, [id]);
+    if (id && isFocused) {
+      fetchComic();
+    }
+  }, [id, isFocused]);
 
   const handleDelete = async () => {
     Alert.alert(
@@ -184,12 +184,7 @@ export default function ComicDetailScreen() {
           <View style={styles.actionsSection}>
             <TouchableOpacity
               style={styles.editButton}
-              onPress={() =>
-                Alert.alert(
-                  "Coming Soon",
-                  "Edit functionality will be available soon!",
-                )
-              }
+              onPress={() => router.push(`/comics/edit/${comic.$id}`)}
             >
               <Ionicons name="create" size={20} color="#000" />
               <Text style={styles.editButtonText}>Edit Details</Text>
@@ -221,7 +216,7 @@ const { width } = Dimensions.get("window");
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A0A0A",
+    backgroundColor: "transparent",
   },
   scrollView: {
     flex: 1,
@@ -230,7 +225,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#0A0A0A",
+    backgroundColor: "transparent",
   },
   loadingText: {
     color: "#BB86FC",
@@ -243,7 +238,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 32,
-    backgroundColor: "#0A0A0A",
+    backgroundColor: "transparent",
   },
   errorText: {
     color: "#CF6679",
@@ -293,7 +288,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 24,
-    backgroundColor: "#0A0A0A",
+    backgroundColor: "transparent",
   },
   headerSection: {
     marginBottom: 24,

@@ -30,7 +30,7 @@ export default function HalftoneBackground() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="none">
       <View style={styles.overlay} />
       {dots}
     </View>
@@ -39,22 +39,18 @@ export default function HalftoneBackground() {
 
 const styles = StyleSheet.create({
   container: {
-    position: "absolute",
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#121212",
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#0A0A0A",
   },
   overlay: {
-    position: "absolute",
-    width: "100%",
-    height: "100%",
-    backgroundColor: "rgba(18, 18, 18, 0.3)",
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
   },
   dot: {
     position: "absolute",
     width: DOT_SIZE,
     height: DOT_SIZE,
     borderRadius: DOT_SIZE / 2,
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255, 255, 255, 0.14)",
   },
 });

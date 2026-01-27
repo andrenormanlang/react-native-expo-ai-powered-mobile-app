@@ -10,6 +10,7 @@
     "migrate": "node scripts/migrate.cjs"
   },
   "dependencies": {
+    "@expo-google-fonts/bangers": "^0.4.1",
     "@expo/vector-icons": "~14.0.4",
     "@google/genai": "^0.8.0",
     "@react-native-picker/picker": "2.9.0",
@@ -22,6 +23,7 @@
     "expo-image-picker": "~16.0.6",
     "expo-linking": "~7.0.5",
     "expo-router": "~4.0.20",
+    "expo-splash-screen": "~0.29.24",
     "expo-status-bar": "~2.0.1",
     "nativewind": "^4.1.23",
     "node-appwrite": "^15.0.1",

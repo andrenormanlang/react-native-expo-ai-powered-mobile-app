@@ -1,48 +1,46 @@
-import { View, Text, StyleSheet } from "react-native";
-import { Tabs, TabList, TabTrigger, TabSlot } from "expo-router/ui";
-import { Ionicons } from "@expo/vector-icons";
-import { Stack } from "expo-router";
+import { useEffect } from "react";
+import { View, StyleSheet } from "react-native";
+import { Stack, usePathname } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { useFonts, Bangers_400Regular } from "@expo-google-fonts/bangers";
+import HalftoneBackground from "./components/HalftoneBackground";
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    Bangers_400Regular,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [fontsLoaded, fontError]);
+
+  const pathname = usePathname();
+  const showHalftone = pathname !== "/" && pathname !== "/add-comic";
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: "transparent" },
-      }}
-    />
+    <View style={styles.root}>
+      {showHalftone && <HalftoneBackground />}
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: "transparent" },
+        }}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  tabList: {
-    flexDirection: "row",
-    borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
-    backgroundColor: "white",
-    paddingBottom: 8,
-    paddingTop: 8,
-  },
-  tabTrigger: {
+  root: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 8,
-  },
-  tabTriggerFocused: {
-    backgroundColor: "rgba(0, 122, 255, 0.1)",
-    borderRadius: 8,
-  },
-  tabContent: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tabText: {
-    fontSize: 12,
-    marginTop: 4,
-    color: "gray",
-  },
-  tabTextFocused: {
-    color: "#007AFF",
+    backgroundColor: "#0A0A0A",
   },
 });

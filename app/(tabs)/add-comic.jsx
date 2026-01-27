@@ -36,7 +36,7 @@ const AddComicScreen = () => {
       Alert.alert(
         "Permission Required",
         "We need camera roll permissions to upload comic covers.",
-        [{ text: "OK" }]
+        [{ text: "OK" }],
       );
       return;
     }
@@ -93,7 +93,7 @@ const AddComicScreen = () => {
       const description = await fetchGeneratedComicDescription(
         title.trim(),
         status,
-        status === "read" ? ratingNum : 0
+        status === "read" ? ratingNum : 0,
       );
 
       if (!description) {
@@ -119,13 +119,13 @@ const AddComicScreen = () => {
             text: "OK",
             onPress: () => router.back(),
           },
-        ]
+        ],
       );
     } catch (error) {
       console.error("Error in handleSubmit:", error);
       Alert.alert(
         "Error",
-        error.message || "Failed to add comic. Please try again."
+        error.message || "Failed to add comic. Please try again.",
       );
     } finally {
       setGeneratingDesc(false);
@@ -145,7 +145,7 @@ const AddComicScreen = () => {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.keyboardView}
     >
-      <ScrollView 
+      <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -185,9 +185,15 @@ const AddComicScreen = () => {
                 </>
               ) : (
                 <View style={styles.imagePlaceholder}>
-                  <Ionicons name="cloud-upload-outline" size={48} color="#666" />
+                  <Ionicons
+                    name="cloud-upload-outline"
+                    size={48}
+                    color="#666"
+                  />
                   <Text style={styles.imageButtonText}>Select Cover Image</Text>
-                  <Text style={styles.imageHint}>Tap to choose from gallery</Text>
+                  <Text style={styles.imageHint}>
+                    Tap to choose from gallery
+                  </Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -250,7 +256,8 @@ const AddComicScreen = () => {
           {status === "read" && (
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
-                <Ionicons name="star" size={16} color="#FFD700" /> Rating (1-5) *
+                <Ionicons name="star" size={16} color="#FFD700" /> Rating (1-5)
+                *
               </Text>
               <View style={styles.starRatingContainer}>
                 {[1, 2, 3, 4, 5].map((star) => (
@@ -277,7 +284,10 @@ const AddComicScreen = () => {
           )}
 
           <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+            style={[
+              styles.submitButton,
+              loading && styles.submitButtonDisabled,
+            ]}
             onPress={handleSubmit}
             disabled={loading || !title.trim()}
             activeOpacity={0.8}
@@ -298,7 +308,9 @@ const AddComicScreen = () => {
           {generatingDesc && (
             <View style={styles.aiIndicator}>
               <ActivityIndicator size="small" color="#BB86FC" />
-              <Text style={styles.aiText}>✨ AI is generating description...</Text>
+              <Text style={styles.aiText}>
+                ✨ AI is generating description...
+              </Text>
             </View>
           )}
         </View>
@@ -310,16 +322,19 @@ const AddComicScreen = () => {
 const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
+    backgroundColor: "#120A1A",
   },
   container: {
     flex: 1,
-    backgroundColor: "transparent",
+    backgroundColor: "#120A1A",
   },
   scrollContent: {
     paddingBottom: 40,
+    backgroundColor: "#120A1A",
   },
   form: {
     padding: 20,
+    backgroundColor: "transparent",
   },
   inputGroup: {
     marginBottom: 24,
