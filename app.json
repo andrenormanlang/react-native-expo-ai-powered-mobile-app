@@ -1,8 +1,8 @@
 {
   "expo": {
-    "scheme": "comicsshelfapp",
-    "name": "comics-shelf-react-native",
+    "name": "ComicsShelf",
     "slug": "comics-shelf-react-native",
+    "owner": "andrenormanlang",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -27,7 +27,8 @@
         "backgroundColor": "#121212"
       },
       "permissions": [
-        "android.permission.READ_EXTERNAL_STORAGE"
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -43,6 +44,13 @@
       ],
       "expo-asset",
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "APPWRITE_ENDPOINT": "https://fra.cloud.appwrite.io/v1",
+      "router": {},
+      "eas": {
+        "projectId": "9e34fd5e-4fc8-45d1-867d-5600176e8344"
+      }
+    }
   }
 }

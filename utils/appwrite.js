@@ -21,24 +21,38 @@ const withTimeout = (promise, timeoutMs, label = "operation") => {
   });
 };
 
-const client = new Client()
-  .setEndpoint(APPWRITE_ENDPOINT)
-  .setProject(APPWRITE_PROJECT_ID)
-  .setPlatform("com.comicsshelf.app"); // Add platform information
+// Validate and provide a safe fallback endpoint
+const FALLBACK_ENDPOINT = "https://fra.cloud.appwrite.io/v1";
+const resolvedEndpoint =
+  typeof APPWRITE_ENDPOINT === "string" && APPWRITE_ENDPOINT.trim().length > 0
+    ? APPWRITE_ENDPOINT.trim()
+    : FALLBACK_ENDPOINT;
+
+const client = new Client();
+if (typeof resolvedEndpoint === "string" && resolvedEndpoint.length > 0) {
+  client.setEndpoint(resolvedEndpoint).setProject(APPWRITE_PROJECT_ID);
+} else {
+  console.error(
+    "Appwrite: invalid endpoint. Provide APPWRITE_ENDPOINT in env or update FALLBACK_ENDPOINT.",
+  );
+}
 
 const databases = new Databases(client);
 const functions = new Functions(client);
 
 const DATABASE_ID = APPWRITE_DATABASE_ID;
 const COLLECTION_ID = APPWRITE_COLLECTION_ID;
-const FUNCTION_ID = APPWRITE_FUNCTION_ID_GENERATE_DESC || "comics_description_ai";
+const FUNCTION_ID =
+  APPWRITE_FUNCTION_ID_GENERATE_DESC || "comics_description_ai";
 
 const DEFAULT_TIMEOUT_MS = 15000;
+const EXECUTION_TIMEOUT_MS = 45000; // give function more time
+const EXECUTION_RETRIES = 2;
 
 export const getComics = async () => {
   try {
     console.log("Starting getComics function with:", {
-      endpoint: APPWRITE_ENDPOINT,
+      endpoint: resolvedEndpoint,
       projectId: APPWRITE_PROJECT_ID,
       databaseId: DATABASE_ID,
       collectionId: COLLECTION_ID,
@@ -47,7 +61,7 @@ export const getComics = async () => {
     const response = await withTimeout(
       databases.listDocuments(DATABASE_ID, COLLECTION_ID),
       DEFAULT_TIMEOUT_MS,
-      "Appwrite listDocuments"
+      "Appwrite listDocuments",
     );
     console.log("Appwrite listDocuments response:", response);
 
@@ -73,7 +87,7 @@ export const getComic = async (documentId) => {
     return await withTimeout(
       databases.getDocument(DATABASE_ID, COLLECTION_ID, documentId),
       DEFAULT_TIMEOUT_MS,
-      "Appwrite getDocument"
+      "Appwrite getDocument",
     );
   } catch (error) {
     console.error("Error fetching comic:", error);
@@ -86,7 +100,7 @@ export const createComic = async (data) => {
     return await withTimeout(
       databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), data),
       DEFAULT_TIMEOUT_MS,
-      "Appwrite createDocument"
+      "Appwrite createDocument",
     );
   } catch (error) {
     console.error("Error creating comic:", error);
@@ -99,7 +113,7 @@ export const updateComic = async (documentId, data) => {
     return await withTimeout(
       databases.updateDocument(DATABASE_ID, COLLECTION_ID, documentId, data),
       DEFAULT_TIMEOUT_MS,
-      "Appwrite updateDocument"
+      "Appwrite updateDocument",
     );
   } catch (error) {
     console.error("Error updating comic:", error);
@@ -112,7 +126,7 @@ export const deleteComic = async (documentId) => {
     return await withTimeout(
       databases.deleteDocument(DATABASE_ID, COLLECTION_ID, documentId),
       DEFAULT_TIMEOUT_MS,
-      "Appwrite deleteDocument"
+      "Appwrite deleteDocument",
     );
   } catch (error) {
     console.error("Error deleting comic:", error);
@@ -124,7 +138,7 @@ export const deleteComic = async (documentId) => {
 export const fetchGeneratedComicDescription = async (
   title,
   status,
-  rating = 0
+  rating = 0,
 ) => {
   try {
     if (!title || !status) {
@@ -139,11 +153,48 @@ export const fetchGeneratedComicDescription = async (
 
     console.log("Calling AI function with data:", data);
 
-    const execution = await withTimeout(
-      functions.createExecution(FUNCTION_ID, data),
-      DEFAULT_TIMEOUT_MS,
-      "Appwrite createExecution"
-    );
+    // Quick endpoint ping to fail fast when offline / endpoint unreachable
+    const pingUrl = `${resolvedEndpoint.replace(/\/$/, "")}/v1/health`;
+    try {
+      const ping = await withTimeout(
+        fetch(pingUrl, { method: "GET" }),
+        5000,
+        "Appwrite endpoint ping",
+      );
+      if (!ping || !ping.ok) {
+        console.warn("Appwrite ping returned non-OK", ping && ping.status);
+      }
+    } catch (pingErr) {
+      console.error("Appwrite endpoint unreachable:", pingErr);
+      throw new Error(
+        `Network error or endpoint unreachable: ${pingErr.message}`,
+      );
+    }
+
+    // Try createExecution with retries and larger timeout
+    let lastErr = null;
+    let execution = null;
+    for (let attempt = 0; attempt < EXECUTION_RETRIES; attempt++) {
+      try {
+        execution = await withTimeout(
+          functions.createExecution(FUNCTION_ID, data),
+          EXECUTION_TIMEOUT_MS,
+          "Appwrite createExecution",
+        );
+        lastErr = null;
+        break;
+      } catch (e) {
+        lastErr = e;
+        console.warn(`createExecution attempt ${attempt + 1} failed:`, e);
+        // exponential backoff before retry
+        const backoff = 700 * Math.pow(2, attempt);
+        await new Promise((res) => setTimeout(res, backoff));
+      }
+    }
+
+    if (lastErr && !execution) {
+      throw lastErr;
+    }
 
     console.log("Function execution response:", execution);
 
@@ -155,9 +206,10 @@ export const fetchGeneratedComicDescription = async (
     let responseData;
     if (execution.response) {
       try {
-        responseData = typeof execution.response === 'string' 
-          ? JSON.parse(execution.response)
-          : execution.response;
+        responseData =
+          typeof execution.response === "string"
+            ? JSON.parse(execution.response)
+            : execution.response;
         console.log("Parsed response:", responseData);
       } catch (parseError) {
         console.error("Failed to parse response:", execution.response);
@@ -165,9 +217,10 @@ export const fetchGeneratedComicDescription = async (
       }
     } else if (execution.responseBody) {
       try {
-        responseData = typeof execution.responseBody === 'string'
-          ? JSON.parse(execution.responseBody)
-          : execution.responseBody;
+        responseData =
+          typeof execution.responseBody === "string"
+            ? JSON.parse(execution.responseBody)
+            : execution.responseBody;
         console.log("Parsed response from responseBody:", responseData);
       } catch (parseError) {
         console.error("Failed to parse responseBody:", execution.responseBody);
