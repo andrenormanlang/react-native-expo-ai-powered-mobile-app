@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -20,6 +20,56 @@ import { getOptimizedImageUrl } from "../../utils/cloudinary";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width / 2 - 24;
+
+function FAB({ onPress }) {
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      tension: 60,
+      friction: 7,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.92,
+      tension: 150,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      tension: 60,
+      friction: 7,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        activeOpacity={1}
+        style={styles.fab}
+        accessible={true}
+        accessibilityRole="button"
+        accessibilityLabel="Add a new comic"
+        accessibilityHint="Opens the form to add a new comic to your shelf"
+      >
+        <Ionicons name="add" size={20} color="#1A1A2E" style={styles.fabIcon} />
+        <Text style={styles.fabLabel}>Add Comic</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
 
 export default function HomeScreen() {
   const [comics, setComics] = useState([]);
@@ -179,6 +229,7 @@ export default function HomeScreen() {
             {comics.length} {comics.length === 1 ? "Comic" : "Comics"}
           </Text>
         </View>
+        <FAB onPress={() => router.push("/add-comic")} />
       </View>
 
       <FlatList
@@ -186,7 +237,9 @@ export default function HomeScreen() {
         renderItem={renderComic}
         keyExtractor={(item) => item.$id}
         style={styles.list}
-        contentContainerStyle={comics.length === 0 ? styles.emptyList : null}
+        contentContainerStyle={
+          comics.length === 0 ? styles.emptyList : { paddingBottom: 32 }
+        }
         numColumns={2}
         columnWrapperStyle={comics.length > 0 ? styles.row : null}
         ListEmptyComponent={renderEmptyState}
@@ -285,7 +338,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   headerSpace: {
-    height: 80,
     marginBottom: 16,
     justifyContent: "space-between",
     alignItems: "center",
@@ -413,5 +465,35 @@ const styles = StyleSheet.create({
   starsContainer: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  fab: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#BB86FC",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    minHeight: 40,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#9B59FF",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+  fabIcon: {
+    marginRight: 6,
+  },
+  fabLabel: {
+    color: "#1A1A2E",
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
 });
