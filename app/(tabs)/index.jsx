@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   RefreshControl,
   Animated,
   Platform,
+  TextInput,
 } from "react-native";
 import { Link, router } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
@@ -73,6 +74,7 @@ function FAB({ onPress }) {
 
 export default function HomeScreen() {
   const [comics, setComics] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -103,6 +105,19 @@ export default function HomeScreen() {
       setRefreshing(false);
     }
   };
+
+  const filteredComics = useMemo(() => {
+    const q = (searchQuery || "").trim().toLowerCase();
+    if (!q) return comics;
+    return comics.filter((c) => {
+      const title = (c.title || c.name || "").toString().toLowerCase();
+      const author = (c.author || c.creator || c.writer || "")
+        .toString()
+        .toLowerCase();
+      const desc = (c.description || c.desc || "").toString().toLowerCase();
+      return title.includes(q) || author.includes(q) || desc.includes(q);
+    });
+  }, [comics, searchQuery]);
 
   useEffect(() => {
     if (isFocused) {
@@ -223,25 +238,53 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.searchContainer}>
+        <Ionicons
+          name="search"
+          size={18}
+          color="#888"
+          style={styles.searchIcon}
+        />
+        <TextInput
+          placeholder="Search comics by title, author, or description"
+          placeholderTextColor="#999"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          style={styles.searchInput}
+          accessibilityLabel="Search comics"
+          accessible={true}
+          returnKeyType="search"
+        />
+        {searchQuery.length > 0 ? (
+          <TouchableOpacity
+            onPress={() => setSearchQuery("")}
+            accessibilityLabel="Clear search"
+            style={styles.clearButton}
+          >
+            <Ionicons name="close" size={16} color="#666" />
+          </TouchableOpacity>
+        ) : null}
+      </View>
       <View style={styles.headerSpace}>
         <View style={styles.statsContainer}>
           <Text style={styles.statsText}>
-            {comics.length} {comics.length === 1 ? "Comic" : "Comics"}
+            {filteredComics.length} of {comics.length}{" "}
+            {comics.length === 1 ? "Comic" : "Comics"}
           </Text>
         </View>
         <FAB onPress={() => router.push("/add-comic")} />
       </View>
 
       <FlatList
-        data={comics}
+        data={filteredComics}
         renderItem={renderComic}
         keyExtractor={(item) => item.$id}
         style={styles.list}
         contentContainerStyle={
-          comics.length === 0 ? styles.emptyList : { paddingBottom: 32 }
+          filteredComics.length === 0 ? styles.emptyList : { paddingBottom: 32 }
         }
         numColumns={2}
-        columnWrapperStyle={comics.length > 0 ? styles.row : null}
+        columnWrapperStyle={filteredComics.length > 0 ? styles.row : null}
         ListEmptyComponent={renderEmptyState}
         refreshControl={
           <RefreshControl
@@ -359,6 +402,31 @@ const styles = StyleSheet.create({
     color: "#BB86FC",
     fontSize: 14,
     fontWeight: "600",
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#0F1724",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.04)",
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    color: "#fff",
+    fontSize: 14,
+    paddingVertical: 4,
+  },
+  clearButton: {
+    marginLeft: 8,
+    padding: 6,
+    borderRadius: 8,
   },
   list: {
     flex: 1,
