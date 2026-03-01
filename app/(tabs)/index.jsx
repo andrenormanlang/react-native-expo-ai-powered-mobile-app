@@ -72,7 +72,7 @@ function FAB({ onPress }) {
   );
 }
 
-export default function HomeScreen() {
+export function ComicsScreen({ statusFilter = null }) {
   const [comics, setComics] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -108,8 +108,12 @@ export default function HomeScreen() {
 
   const filteredComics = useMemo(() => {
     const q = (searchQuery || "").trim().toLowerCase();
-    if (!q) return comics;
-    return comics.filter((c) => {
+    let items = comics;
+    if (statusFilter) {
+      items = items.filter((c) => (c.status || "").toString() === statusFilter);
+    }
+    if (!q) return items;
+    return items.filter((c) => {
       const title = (c.title || c.name || "").toString().toLowerCase();
       const author = (c.author || c.creator || c.writer || "")
         .toString()
@@ -117,7 +121,25 @@ export default function HomeScreen() {
       const desc = (c.description || c.desc || "").toString().toLowerCase();
       return title.includes(q) || author.includes(q) || desc.includes(q);
     });
-  }, [comics, searchQuery]);
+  }, [comics, searchQuery, statusFilter]);
+
+  const statsText = useMemo(() => {
+    const total = comics.length;
+    const readCount = comics.filter((comic) => comic.status === "read").length;
+    const toReadCount = comics.filter(
+      (comic) => comic.status === "to-read",
+    ).length;
+
+    if (statusFilter === "read") {
+      return `${readCount} of ${total} comics read`;
+    }
+
+    if (statusFilter === "to-read") {
+      return `${toReadCount} of ${total} comics to read`;
+    }
+
+    return `${total} comics in total`;
+  }, [comics, statusFilter]);
 
   useEffect(() => {
     if (isFocused) {
@@ -267,10 +289,7 @@ export default function HomeScreen() {
       </View>
       <View style={styles.headerSpace}>
         <View style={styles.statsContainer}>
-          <Text style={styles.statsText}>
-            {filteredComics.length} of {comics.length}{" "}
-            {comics.length === 1 ? "Comic" : "Comics"}
-          </Text>
+          <Text style={styles.statsText}>{statsText}</Text>
         </View>
         <FAB onPress={() => router.push("/add-comic")} />
       </View>
@@ -298,6 +317,10 @@ export default function HomeScreen() {
       />
     </View>
   );
+}
+
+export default function HomeScreen() {
+  return <ComicsScreen />;
 }
 
 const styles = StyleSheet.create({
