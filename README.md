@@ -1,6 +1,6 @@
 # Comics Shelf (Expo / React Native) 📚
 
-A tiny comic collection app that lets you track what you've read vs what's on your "to-read" pile, store everything in Appwrite, and upload cover images to Cloudinary. It can also generate a short description via an Appwrite Function. 💪
+A tiny comic collection app that lets you track what you've read vs what's on your "to-read" pile, store everything in Appwrite, and upload cover images to Cloudinary. It can also generate comic descriptions via an Appwrite Function, now using the cover image when one is available. 💪
 
 ## What you can do ✨
 
@@ -10,9 +10,10 @@ A tiny comic collection app that lets you track what you've read vs what's on yo
   - Status: `to-read` or `read`
   - Rating (1–5, only when status is `read`)
   - Optional cover image upload
-  - Auto-generated description (via Appwrite Functions)
+  - Auto-generated description from the cover image when available, with title-based fallback
 - View details for a comic
 - Edit a comic (title/status/rating/description/cover)
+- Regenerate a description from the selected cover on the edit screen
 - Delete a comic (with confirmation) 🗑️
 
 ## Routes / screens 🗺️
@@ -120,12 +121,12 @@ npm run web
 
 ### AI description generation
 
-When adding a comic, the app calls an Appwrite Function execution:
+When adding or editing a comic, the app can call an Appwrite Function execution:
 
 - Function ID: `APPWRITE_FUNCTION_ID_GENERATE_DESC` (or default `comics_description_ai`)
-- Payload: `{ title, status, rating }`
+- Payload: `{ title, status, rating, coverImage?, mode? }`
 - Expected response shape:
-  - `{ success: true, description: "..." }`
+  - `{ success: true, description: "...", source: "cover-image" | "title" }`
 
 If you don't have that function deployed, adding comics will fail at the "generate description" step. 🚨
 

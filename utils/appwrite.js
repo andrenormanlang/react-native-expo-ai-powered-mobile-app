@@ -48,6 +48,9 @@ const FUNCTION_ID =
 const DEFAULT_TIMEOUT_MS = 15000;
 const EXECUTION_TIMEOUT_MS = 45000; // give function more time
 const EXECUTION_RETRIES = 2;
+const endpointBase = resolvedEndpoint
+  .replace(/\/v1\/?$/, "")
+  .replace(/\/$/, "");
 
 export const getComics = async () => {
   try {
@@ -134,27 +137,54 @@ export const deleteComic = async (documentId) => {
   }
 };
 
-// --- New function to call the backend function ---
+const normalizeDescriptionRequest = (inputOrTitle, status, rating = 0) => {
+  if (
+    inputOrTitle &&
+    typeof inputOrTitle === "object" &&
+    !Array.isArray(inputOrTitle)
+  ) {
+    return {
+      title: String(inputOrTitle.title || "").trim(),
+      status: String(inputOrTitle.status || "").trim(),
+      rating: parseInt(inputOrTitle.rating, 10) || 0,
+      coverImage: String(
+        inputOrTitle.coverImage || inputOrTitle.imageUrl || "",
+      ).trim(),
+      mode: String(inputOrTitle.mode || "long").trim(),
+    };
+  }
+
+  return {
+    title: String(inputOrTitle || "").trim(),
+    status: String(status || "").trim(),
+    rating: parseInt(rating, 10) || 0,
+    coverImage: "",
+    mode: "long",
+  };
+};
+
 export const fetchGeneratedComicDescription = async (
-  title,
+  inputOrTitle,
   status,
   rating = 0,
 ) => {
   try {
-    if (!title || !status) {
-      throw new Error("Title and status are required fields");
+    const payload = normalizeDescriptionRequest(inputOrTitle, status, rating);
+
+    if (!payload.status) {
+      throw new Error("Status is a required field");
     }
 
-    const data = JSON.stringify({
-      title: title.trim(),
-      status: status.trim(),
-      rating: parseInt(rating) || 0,
-    });
+    if (!payload.title && !payload.coverImage) {
+      throw new Error("Provide a title or a cover image to generate a description");
+    }
+
+    const data = JSON.stringify(payload);
 
     console.log("Calling AI function with data:", data);
 
     // Quick endpoint ping to fail fast when offline / endpoint unreachable
-    const pingUrl = `${resolvedEndpoint.replace(/\/$/, "")}/v1/health`;
+    const pingUrl = `${endpointBase}/v1/health`;
     try {
       const ping = await withTimeout(
         fetch(pingUrl, { method: "GET" }),
@@ -245,7 +275,12 @@ export const fetchGeneratedComicDescription = async (
       throw new Error("Invalid response from AI function");
     }
 
-    return responseData.description;
+    return {
+      title: String(responseData.title || payload.title || "").trim(),
+      description: responseData.description,
+      source: responseData.source || (payload.coverImage ? "cover-image" : "title"),
+      mode: responseData.mode || payload.mode || "long",
+    };
   } catch (error) {
     console.error("Error executing AI function:", error);
     throw error;

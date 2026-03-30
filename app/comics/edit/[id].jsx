@@ -15,7 +15,11 @@ import {
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { getComic, updateComic } from "../../../utils/appwrite";
+import {
+  fetchGeneratedComicDescription,
+  getComic,
+  updateComic,
+} from "../../../utils/appwrite";
 import { uploadToCloudinary } from "../../../utils/cloudinary";
 
 export default function EditComicScreen() {
@@ -25,6 +29,7 @@ export default function EditComicScreen() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [generatingDescription, setGeneratingDescription] = useState(false);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -68,7 +73,7 @@ export default function EditComicScreen() {
     if (id) fetchComic();
   }, [id]);
 
-  const pickImage = async () => {
+  const selectImageFromLibrary = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permission.status !== "granted") {
       Alert.alert(
@@ -96,6 +101,51 @@ export default function EditComicScreen() {
     }
   };
 
+  const captureImageWithCamera = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (permission.status !== "granted") {
+      Alert.alert(
+        "Permission Required",
+        "We need camera access so you can take a comic cover photo.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [2, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setLocalImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error("Error capturing image:", error);
+      Alert.alert("Error", "Failed to take photo. Please try again.");
+    }
+  };
+
+  const promptForImageSource = () => {
+    Alert.alert("Update Cover Image", "Choose how you want to add the cover.", [
+      {
+        text: "Take Photo",
+        onPress: captureImageWithCamera,
+      },
+      {
+        text: "Choose from Library",
+        onPress: selectImageFromLibrary,
+      },
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+    ]);
+  };
+
   const handleSave = async () => {
     if (!canSave) {
       Alert.alert(
@@ -120,11 +170,7 @@ export default function EditComicScreen() {
       setSaving(true);
 
       const ratingNum = status === "read" ? parseInt(rating, 10) : 0;
-
-      let nextCoverImage = coverImage;
-      if (localImage) {
-        nextCoverImage = await uploadToCloudinary(localImage);
-      }
+      const nextCoverImage = await ensureUploadedCoverImage();
 
       await updateComic(id, {
         title: normalizedTitle,
@@ -149,6 +195,73 @@ export default function EditComicScreen() {
     }
   };
 
+  const ensureUploadedCoverImage = async () => {
+    if (!localImage) {
+      return coverImage;
+    }
+
+    const uploadedCoverImage = await uploadToCloudinary(localImage);
+    setCoverImage(uploadedCoverImage);
+    setLocalImage(null);
+    return uploadedCoverImage;
+  };
+
+  const handleGenerateDescription = async () => {
+    const normalizedTitle = String(title ?? "").trim();
+
+    if (!normalizedTitle && !localImage && !coverImage) {
+      Alert.alert(
+        "Need more info",
+        "Add a title or select a cover image so AI has something to work from.",
+      );
+      return;
+    }
+
+    try {
+      setGeneratingDescription(true);
+
+      const nextCoverImage = await ensureUploadedCoverImage();
+      const ratingNum = status === "read" ? parseInt(rating, 10) || 0 : 0;
+
+      const result = await fetchGeneratedComicDescription({
+        title: normalizedTitle,
+        status,
+        rating: ratingNum,
+        coverImage: nextCoverImage,
+        mode: "long",
+      });
+
+      if (!result?.description) {
+        throw new Error("Failed to generate description");
+      }
+
+      const generatedTitle = String(result?.title || "").trim();
+      if (generatedTitle) {
+        setTitle(generatedTitle);
+      }
+      setDescription(result.description);
+
+      Alert.alert(
+        generatedTitle ? "Title and description updated" : "Description updated",
+        result.source === "cover-image"
+          ? generatedTitle
+            ? "The new title and description were generated from the cover artwork."
+            : "The new description was generated from the cover artwork."
+          : generatedTitle
+            ? "The new title and description were generated from the title."
+            : "The new description was generated from the title.",
+      );
+    } catch (err) {
+      console.error("Error generating description:", err);
+      Alert.alert(
+        "Error",
+        err?.message || "Failed to generate a description",
+      );
+    } finally {
+      setGeneratingDescription(false);
+    }
+  };
+
   const setStatusSafe = (nextStatus) => {
     setStatus(nextStatus);
     if (nextStatus !== "read") {
@@ -164,7 +277,7 @@ export default function EditComicScreen() {
           <TouchableOpacity
             key={star}
             onPress={() => setRating(String(star))}
-            disabled={saving}
+            disabled={saving || generatingDescription}
             style={styles.starButton}
           >
             <Ionicons
@@ -206,7 +319,7 @@ export default function EditComicScreen() {
           <TouchableOpacity
             onPress={() => router.back()}
             style={styles.headerIconButton}
-            disabled={saving}
+            disabled={saving || generatingDescription}
           >
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
@@ -219,9 +332,9 @@ export default function EditComicScreen() {
             <Text style={styles.label}>Cover</Text>
             <TouchableOpacity
               style={styles.imageButton}
-              onPress={pickImage}
+              onPress={promptForImageSource}
               activeOpacity={0.9}
-              disabled={saving}
+              disabled={saving || generatingDescription}
             >
               {previewUri ? (
                 <>
@@ -237,7 +350,9 @@ export default function EditComicScreen() {
                 <View style={styles.imagePlaceholder}>
                   <Ionicons name="image-outline" size={48} color="#BB86FC" />
                   <Text style={styles.imageButtonText}>Add a cover image</Text>
-                  <Text style={styles.imageHint}>Optional</Text>
+                  <Text style={styles.imageHint}>
+                    Take a photo or choose one from your library.
+                  </Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -251,7 +366,7 @@ export default function EditComicScreen() {
               onChangeText={setTitle}
               placeholder="e.g. One Piece Vol. 1"
               placeholderTextColor="#777"
-              editable={!saving}
+              editable={!saving && !generatingDescription}
               maxLength={TITLE_MAX_LENGTH}
             />
           </View>
@@ -265,7 +380,7 @@ export default function EditComicScreen() {
                   status === "to-read" && styles.statusButtonActive,
                 ]}
                 onPress={() => setStatusSafe("to-read")}
-                disabled={saving}
+                disabled={saving || generatingDescription}
               >
                 <Ionicons
                   name="bookmark"
@@ -288,7 +403,7 @@ export default function EditComicScreen() {
                   status === "read" && styles.statusButtonActive,
                 ]}
                 onPress={() => setStatusSafe("read")}
-                disabled={saving}
+                disabled={saving || generatingDescription}
               >
                 <Ionicons
                   name="checkmark-circle"
@@ -318,15 +433,38 @@ export default function EditComicScreen() {
               placeholder="Add your notes or a synopsis..."
               placeholderTextColor="#777"
               multiline
-              editable={!saving}
+              editable={!saving && !generatingDescription}
             />
+            <TouchableOpacity
+              style={[
+                styles.generateButton,
+                (saving || generatingDescription) && styles.generateButtonDisabled,
+              ]}
+              onPress={handleGenerateDescription}
+              disabled={saving || generatingDescription}
+              activeOpacity={0.85}
+            >
+              {generatingDescription ? (
+                <ActivityIndicator size="small" color="#BB86FC" />
+              ) : (
+                <Ionicons name="sparkles" size={18} color="#BB86FC" />
+              )}
+              <Text style={styles.generateButtonText}>
+                {generatingDescription
+                  ? "Generating from cover..."
+                  : "Generate with AI"}
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.generateHint}>
+              Uses the selected cover first and updates the title too when AI can read it.
+            </Text>
           </View>
 
           <View style={styles.actionsRow}>
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={() => router.back()}
-              disabled={saving}
+              disabled={saving || generatingDescription}
             >
               <Ionicons name="close" size={20} color="#fff" />
               <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -335,10 +473,11 @@ export default function EditComicScreen() {
             <TouchableOpacity
               style={[
                 styles.saveButton,
-                (!canSave || saving) && styles.saveButtonDisabled,
+                (!canSave || saving || generatingDescription) &&
+                  styles.saveButtonDisabled,
               ]}
               onPress={handleSave}
-              disabled={!canSave || saving}
+              disabled={!canSave || saving || generatingDescription}
               activeOpacity={0.85}
             >
               {saving ? (
@@ -418,6 +557,32 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 120,
     textAlignVertical: "top",
+  },
+  generateButton: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(187, 134, 252, 0.45)",
+    backgroundColor: "rgba(187, 134, 252, 0.08)",
+  },
+  generateButtonDisabled: {
+    opacity: 0.7,
+  },
+  generateButtonText: {
+    color: "#BB86FC",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  generateHint: {
+    marginTop: 10,
+    color: "#8E8E93",
+    fontSize: 13,
+    lineHeight: 18,
   },
   inputEmpty: {
     borderColor: "#555",

@@ -30,8 +30,9 @@ const AddComicScreen = () => {
   const [loading, setLoading] = useState(false);
   const [image, setImage] = useState(null);
   const [generatingDesc, setGeneratingDesc] = useState(false);
+  const [generationSource, setGenerationSource] = useState("title");
 
-  const pickImage = async () => {
+  const selectImageFromLibrary = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (status !== "granted") {
@@ -60,15 +61,61 @@ const AddComicScreen = () => {
     }
   };
 
-  const handleSubmit = async () => {
-    const normalizedTitle = String(title ?? "").trim();
+  const captureImageWithCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
 
-    if (!normalizedTitle) {
-      Alert.alert("Error", "Please enter a comic title");
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission Required",
+        "We need camera access so you can take a comic cover photo.",
+        [{ text: "OK" }],
+      );
       return;
     }
 
-    if (normalizedTitle.length > TITLE_MAX_LENGTH) {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [2, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error("Error capturing image:", error);
+      Alert.alert("Error", "Failed to take photo. Please try again.");
+    }
+  };
+
+  const promptForImageSource = () => {
+    Alert.alert("Add Cover Image", "Choose how you want to add the cover.", [
+      {
+        text: "Take Photo",
+        onPress: captureImageWithCamera,
+      },
+      {
+        text: "Choose from Library",
+        onPress: selectImageFromLibrary,
+      },
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+    ]);
+  };
+
+  const handleSubmit = async () => {
+    const normalizedTitle = String(title ?? "").trim();
+
+    if (!normalizedTitle && !image) {
+      Alert.alert("Error", "Add a comic title or a cover image");
+      return;
+    }
+
+    if (normalizedTitle && normalizedTitle.length > TITLE_MAX_LENGTH) {
       Alert.alert(
         "Title too long",
         `Please keep the title under ${TITLE_MAX_LENGTH} characters.`
@@ -88,6 +135,7 @@ const AddComicScreen = () => {
     try {
       setLoading(true);
       setGeneratingDesc(true);
+      setGenerationSource(image ? "cover-image" : "title");
 
       // Upload image if one was selected
       let coverImage = null;
@@ -102,19 +150,38 @@ const AddComicScreen = () => {
       });
 
       // Generate description before creating the comic
-      const description = await fetchGeneratedComicDescription(
-        normalizedTitle,
+      const result = await fetchGeneratedComicDescription({
+        title: normalizedTitle,
         status,
-        status === "read" ? ratingNum : 0,
-      );
+        rating: status === "read" ? ratingNum : 0,
+        coverImage,
+        mode: "long",
+      });
 
+      const description = result?.description;
       if (!description) {
         throw new Error("Failed to generate description");
       }
 
+      const generatedTitle = String(result?.title || "").trim();
+      const finalTitle = normalizedTitle || generatedTitle;
+
+      if (!finalTitle) {
+        throw new Error("AI could not determine a comic title from the cover");
+      }
+
+      if (finalTitle.length > TITLE_MAX_LENGTH) {
+        throw new Error(
+          `The generated title is longer than ${TITLE_MAX_LENGTH} characters`,
+        );
+      }
+
+      setTitle(finalTitle);
+      setGenerationSource(result?.source || (coverImage ? "cover-image" : "title"));
+
       // Create comic with the generated description
       await createComic({
-        title: normalizedTitle,
+        title: finalTitle,
         status,
         rating: status === "read" ? ratingNum : 0,
         coverImage,
@@ -125,7 +192,7 @@ const AddComicScreen = () => {
 
       Alert.alert(
         "Success!",
-        `${normalizedTitle} has been added to your collection.`,
+        `${finalTitle} has been added to your collection.`,
         [
           {
             text: "OK",
@@ -147,7 +214,12 @@ const AddComicScreen = () => {
 
   const getButtonText = () => {
     if (loading) {
-      return generatingDesc ? "Generating Desc..." : "Adding Comic...";
+      if (generatingDesc) {
+        return generationSource === "cover-image"
+          ? "Analyzing Cover..."
+          : "Generating Desc...";
+      }
+      return "Adding Comic...";
     }
     return "Add Comic";
   };
@@ -165,17 +237,20 @@ const AddComicScreen = () => {
         <View style={styles.form}>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>
-              <Ionicons name="book" size={16} color="#BB86FC" /> Comic Title *
+              <Ionicons name="book" size={16} color="#BB86FC" /> Comic Title
             </Text>
             <TextInput
               style={[styles.input, !title.trim() && styles.inputEmpty]}
               value={title}
               onChangeText={setTitle}
-              placeholder="Enter comic title"
+              placeholder="Enter comic title or let AI read it from the cover"
               placeholderTextColor="#666"
               editable={!loading}
               maxLength={TITLE_MAX_LENGTH}
             />
+            <Text style={styles.fieldHint}>
+              Optional when you add a cover image. AI can fill this in for you.
+            </Text>
           </View>
 
           <View style={styles.inputGroup}>
@@ -184,7 +259,7 @@ const AddComicScreen = () => {
             </Text>
             <TouchableOpacity
               style={styles.imageButton}
-              onPress={pickImage}
+              onPress={promptForImageSource}
               disabled={loading}
               activeOpacity={0.8}
             >
@@ -203,9 +278,9 @@ const AddComicScreen = () => {
                     size={48}
                     color="#666"
                   />
-                  <Text style={styles.imageButtonText}>Select Cover Image</Text>
+                  <Text style={styles.imageButtonText}>Add Cover Image</Text>
                   <Text style={styles.imageHint}>
-                    Tap to choose from gallery
+                    Take a photo or choose one from your library. AI will use it for the description.
                   </Text>
                 </View>
               )}
@@ -302,7 +377,7 @@ const AddComicScreen = () => {
               loading && styles.submitButtonDisabled,
             ]}
             onPress={handleSubmit}
-            disabled={loading || !title.trim()}
+            disabled={loading || (!title.trim() && !image)}
             activeOpacity={0.8}
           >
             {loading ? (
@@ -322,7 +397,9 @@ const AddComicScreen = () => {
             <View style={styles.aiIndicator}>
               <ActivityIndicator size="small" color="#BB86FC" />
               <Text style={styles.aiText}>
-                ✨ AI is generating description...
+                {generationSource === "cover-image"
+                  ? "AI is analyzing the cover to fill the title and description..."
+                  : "AI is generating a description from the title..."}
               </Text>
             </View>
           )}
@@ -370,6 +447,12 @@ const styles = StyleSheet.create({
   },
   inputEmpty: {
     borderColor: "#555",
+  },
+  fieldHint: {
+    color: "#8E8E93",
+    fontSize: 13,
+    marginTop: 8,
+    lineHeight: 18,
   },
   imageButton: {
     backgroundColor: "rgba(30, 30, 30, 0.95)",

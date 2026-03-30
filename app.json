@@ -17,6 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
+        "NSCameraUsageDescription": "Allow Comics Shelf to use your camera to capture comic cover images.",
         "NSPhotoLibraryUsageDescription": "Allow Comics Shelf to access your photos to upload comic cover images."
       }
     },
@@ -27,6 +28,7 @@
         "backgroundColor": "#121212"
       },
       "permissions": [
+        "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.RECORD_AUDIO"
       ]
@@ -39,6 +41,7 @@
       [
         "expo-image-picker",
         {
+          "cameraPermission": "Allow Comics Shelf to use your camera to capture comic cover images.",
           "photosPermission": "Allow Comics Shelf to access your photos to upload comic cover images."
         }
       ],
